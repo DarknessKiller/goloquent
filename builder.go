@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/Oskang09/goloquent/expr"
+	"github.com/RevenueMonster/goloquent/expr"
 )
 
 const (

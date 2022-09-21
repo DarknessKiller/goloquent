@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Oskang09/goloquent"
-	"github.com/Oskang09/goloquent/db"
+	"github.com/RevenueMonster/goloquent"
+	"github.com/RevenueMonster/goloquent/db"
 	_ "github.com/lib/pq"
 )
 

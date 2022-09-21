@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Oskang09/goloquent/types"
+	"github.com/RevenueMonster/goloquent/types"
 )
 
 type mysql struct {

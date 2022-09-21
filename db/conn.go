@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Oskang09/goloquent"
+	"github.com/RevenueMonster/goloquent"
 )
 
 var (

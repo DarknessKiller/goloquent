@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/datastore"
-	"github.com/Oskang09/goloquent"
-	"github.com/Oskang09/goloquent/db"
-	"github.com/Oskang09/goloquent/expr"
+	"github.com/RevenueMonster/goloquent"
+	"github.com/RevenueMonster/goloquent/db"
+	"github.com/RevenueMonster/goloquent/expr"
 	"github.com/brianvoe/gofakeit"
 
 	//  "database/sql"
