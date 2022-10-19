@@ -58,8 +58,9 @@ const (
 )
 
 const (
-	maxLimit     = 10000
-	keyFieldName = "__key__"
+	maxLimit             = 10000
+	keyFieldName         = "__key__"
+	contextResolutionKey = "_goloquent_context_query"
 )
 
 func checkSinglePtr(it interface{}) error {
@@ -80,18 +81,26 @@ type group struct {
 }
 
 type scope struct {
-	table      string
-	distinctOn []string
-	projection []string
-	omits      []string
-	ancestors  []group
-	filters    []Filter
-	orders     []interface{}
-	limit      int32
-	offset     int32
-	errs       []error
-	noScope    bool
-	lockMode   locked
+	table        string
+	distinctOn   []string
+	projection   []string
+	omits        []string
+	ancestors    []group
+	filters      []Filter
+	orders       []interface{}
+	limit        int32
+	offset       int32
+	errs         []error
+	noScope      bool
+	noResolution bool
+	lockMode     locked
+}
+
+func (s scope) append(s2 scope) scope {
+	s.projection = append(s.projection, s2.projection...)
+	s.filters = append(s.filters, s2.filters...)
+	s.orders = append(s.orders, s2.orders...)
+	return s
 }
 
 // Query :
@@ -119,9 +128,7 @@ func (q *Query) clone() *Query {
 }
 
 func (q *Query) append(query *Query) *Query {
-	q.scope.projection = append(q.scope.projection, query.scope.projection...)
-	q.scope.filters = append(q.scope.filters, query.scope.filters...)
-	q.scope.orders = append(q.scope.orders, query.scope.orders...)
+	q.scope = q.scope.append(query.scope)
 	return q
 }
 
@@ -191,6 +198,12 @@ func (q *Query) Omit(fields ...string) *Query {
 // Unscoped :
 func (q *Query) Unscoped() *Query {
 	q.noScope = true
+	return q
+}
+
+// IgnoreResolution :
+func (q *Query) IgnoreResolution() *Query {
+	q.noResolution = true
 	return q
 }
 
@@ -618,4 +631,19 @@ func (q *Query) Flush(ctx context.Context) error {
 // Scan :
 func (q *Query) Scan(ctx context.Context, dest ...interface{}) error {
 	return newBuilder(q).scan(ctx, dest...)
+}
+
+func (q *Query) InjectResolution(ctx context.Context) context.Context {
+	queryScope := extractResolution(ctx)
+	queryScope = queryScope.append(q.scope)
+	return context.WithValue(ctx, contextResolutionKey, queryScope)
+}
+
+func extractResolution(ctx context.Context) scope {
+	iQuery := ctx.Value(contextResolutionKey)
+	query, ok := iQuery.(scope)
+	if ok {
+		return query
+	}
+	return scope{}
 }

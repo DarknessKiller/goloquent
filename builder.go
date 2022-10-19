@@ -388,8 +388,13 @@ func (b *builder) migrateMultiple(ctx context.Context, models []interface{}) err
 	return nil
 }
 
-func (b *builder) getCommand(e *entity) (*stmt, error) {
+func (b *builder) getCommand(ctx context.Context, e *entity) (*stmt, error) {
 	query := b.query
+	if !b.query.noResolution {
+		queryScope := extractResolution(ctx)
+		query = query.append(queryScope)
+	}
+
 	buf := new(bytes.Buffer)
 	buf.WriteString(b.buildSelect(query).string())
 	buf.WriteString(" FROM " + b.db.dialect.GetTable(e.Name()))
@@ -464,7 +469,7 @@ func (b *builder) get(ctx context.Context, model interface{}, mustExist bool) er
 		return err
 	}
 	e.setName(b.query.table)
-	cmd, err := b.getCommand(e)
+	cmd, err := b.getCommand(ctx, e)
 	if err != nil {
 		return err
 	}
@@ -498,7 +503,7 @@ func (b *builder) getMulti(ctx context.Context, model interface{}) error {
 		return err
 	}
 	e.setName(b.query.table)
-	cmd, err := b.getCommand(e)
+	cmd, err := b.getCommand(ctx, e)
 	if err != nil {
 		return err
 	}
@@ -547,7 +552,7 @@ func (b *builder) paginate(ctx context.Context, p *Pagination, model interface{}
 		return err
 	}
 	e.setName(b.query.table)
-	cmds, err := b.getCommand(e)
+	cmds, err := b.getCommand(ctx, e)
 	if err != nil {
 		return err
 	}
