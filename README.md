@@ -543,6 +543,25 @@ func (x *User) Save() (error) {
     }
 ```
 
+### Context Resolution Query 
+
+```go
+    import "github.com/RevenueMonster/goloquent/db"
+    
+    db.NewQuery().
+        WhereLike("Name", "%name%").
+        First(context.Background(), user)
+    // query: SELECT * FROM `user` WHERE `Name` LIKE "%name%"
+
+    ctx := context.Background()
+    ctx = db.Where("MerchantID", "=", 1234).InjectResolution(ctx)
+
+    db.NewQuery().
+        WhereLike("Name", "%name%").
+        First(ctx, user)
+    // query: SELECT * FROM `user` WHERE `MerchantID` = 1234 AND `Name` LIKE "%name%"
+```
+
 - **Data Type Support for Where Filtering**
 
 The supported data type are :
