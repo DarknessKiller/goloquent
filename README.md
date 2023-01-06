@@ -543,7 +543,7 @@ func (x *User) Save() (error) {
     }
 ```
 
-### Context Resolution Query 
+## Context Resolution Query 
 
 ```go
     import "github.com/RevenueMonster/goloquent/db"
@@ -561,6 +561,95 @@ func (x *User) Save() (error) {
         First(ctx, user)
     // query: SELECT * FROM `user` WHERE `MerchantID` = 1234 AND `Name` LIKE "%name%"
 ```
+
+## Replica Connection
+
+
+
+### Adding Readonly Replica Connection
+
+```go
+    import "github.com/RevenueMonster/goloquent/db"
+
+	dbContext := context.Background()
+    conn, err := db.Open(dbContext, "mysql", db.Config{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
+        },
+    })
+    defer conn.Close()
+    if err != nil {
+        panic("Connection error: ", err)
+    }
+
+	if err := conn.Replica(dbContext, "mysql", goloquent.ReplicaConfig{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+		ReadOnly: true,
+		Native: func(db *sql.DB) {
+			db.SetMaxIdleConns(64)
+			db.SetMaxOpenConns(64)
+			db.SetConnMaxLifetime(time.Minute)
+		},
+	}); err != nil {
+		panic(fmt.Sprintf("Connection errors for mysql replica : %s", err))
+	}
+```
+
+### Adding Secondary Replica Connection
+
+
+```go
+    import "github.com/RevenueMonster/goloquent/db"
+
+	dbContext := context.Background()
+    conn, err := db.Open(dbContext, "mysql", db.Config{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
+        },
+    })
+    defer conn.Close()
+    if err != nil {
+        panic("Connection error: ", err)
+    }
+
+	if err := conn.Replica(dbContext, "mysql", goloquent.ReplicaConfig{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+		Native: func(db *sql.DB) {
+			db.SetMaxIdleConns(64)
+			db.SetMaxOpenConns(64)
+			db.SetConnMaxLifetime(time.Minute)
+		},
+	}); err != nil {
+		panic(fmt.Sprintf("Connection errors for mysql replica : %s", err))
+	}
+```
+
 
 - **Data Type Support for Where Filtering**
 

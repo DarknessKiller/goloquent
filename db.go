@@ -54,6 +54,7 @@ type Config struct {
 	TLSConfig  string
 	CharSet    *CharSet
 	Logger     LogHandler
+	Native     NativeHandler
 }
 
 // Normalize :
@@ -197,10 +198,10 @@ type DB struct {
 	id      string
 	driver  string
 	name    string
-	replica string
 	client  Client
 	dialect Dialect
 	omits   []string
+	replica *replica
 }
 
 // NewDB :
@@ -219,6 +220,7 @@ func NewDB(ctx context.Context, driver string, charset CharSet, conn sqlCommon, 
 		name:    dialect.CurrentDB(ctx),
 		client:  client,
 		dialect: dialect,
+		replica: new(replica),
 	}
 }
 
@@ -228,9 +230,9 @@ func (db *DB) clone() *DB {
 		id:      db.id,
 		driver:  db.driver,
 		name:    db.name,
-		replica: fmt.Sprintf("%d", time.Now().Unix()),
 		client:  db.client,
 		dialect: db.dialect,
+		replica: db.replica,
 	}
 }
 
@@ -266,7 +268,7 @@ func (db *DB) Table(name string) *Table {
 
 // Migrate :
 func (db *DB) Migrate(ctx context.Context, model ...interface{}) error {
-	return newBuilder(db.NewQuery()).migrateMultiple(ctx, model)
+	return newBuilder(db.NewQuery(), operationDDL).migrateMultiple(ctx, model)
 }
 
 // Omit :
@@ -282,17 +284,17 @@ func (db *DB) Omit(fields ...string) Replacer {
 // Create :
 func (db *DB) Create(ctx context.Context, model interface{}, parentKey ...*datastore.Key) error {
 	if parentKey == nil {
-		return newBuilder(db.NewQuery()).put(ctx, model, nil)
+		return newBuilder(db.NewQuery(), operationWrite).put(ctx, model, nil)
 	}
-	return newBuilder(db.NewQuery()).put(ctx, model, parentKey)
+	return newBuilder(db.NewQuery(), operationWrite).put(ctx, model, parentKey)
 }
 
 // Upsert :
 func (db *DB) Upsert(ctx context.Context, model interface{}, parentKey ...*datastore.Key) error {
 	if parentKey == nil {
-		return newBuilder(db.NewQuery().Omit(db.omits...)).upsert(ctx, model, nil)
+		return newBuilder(db.NewQuery().Omit(db.omits...), operationWrite).upsert(ctx, model, nil)
 	}
-	return newBuilder(db.NewQuery().Omit(db.omits...)).upsert(ctx, model, parentKey)
+	return newBuilder(db.NewQuery().Omit(db.omits...), operationWrite).upsert(ctx, model, parentKey)
 }
 
 // Save :
@@ -300,17 +302,17 @@ func (db *DB) Save(ctx context.Context, model interface{}) error {
 	if err := checkSinglePtr(model); err != nil {
 		return err
 	}
-	return newBuilder(db.NewQuery().Omit(db.omits...)).save(ctx, model)
+	return newBuilder(db.NewQuery().Omit(db.omits...), operationWrite).save(ctx, model)
 }
 
 // Delete :
 func (db *DB) Delete(ctx context.Context, model interface{}) error {
-	return newBuilder(db.NewQuery()).delete(ctx, model, true)
+	return newBuilder(db.NewQuery(), operationWrite).delete(ctx, model, true)
 }
 
 // Destroy :
 func (db *DB) Destroy(ctx context.Context, model interface{}) error {
-	return newBuilder(db.NewQuery()).delete(ctx, model, false)
+	return newBuilder(db.NewQuery(), operationWrite).delete(ctx, model, false)
 }
 
 // Truncate :
@@ -334,7 +336,7 @@ func (db *DB) Truncate(ctx context.Context, model ...interface{}) error {
 		}
 		ns = append(ns, table)
 	}
-	return newBuilder(db.NewQuery()).truncate(ctx, ns...)
+	return newBuilder(db.NewQuery(), operationWrite).truncate(ctx, ns...)
 }
 
 // Select :
@@ -384,7 +386,7 @@ func (db *DB) MatchAgainst(fields []string, value ...string) *Query {
 
 // RunInTransaction :
 func (db *DB) RunInTransaction(cb TransactionHandler) error {
-	return newBuilder(db.NewQuery()).runInTransaction(cb)
+	return newBuilder(db.NewQuery(), operationWrite).runInTransaction(cb)
 }
 
 // Close :

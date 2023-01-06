@@ -35,8 +35,42 @@ type builder struct {
 	query scope
 }
 
-func newBuilder(query *Query) *builder {
-	clone := query.db.clone()
+type dbOperation int64
+
+const (
+	operationWrite = iota
+	operationRead
+	operationDDL
+)
+
+func newBuilder(query *Query, operation dbOperation) *builder {
+
+	// resolver strategy
+	var clone *DB
+	if query.db.replica != nil {
+
+		switch true {
+
+		// DDL Query should always fired using primary connection only
+		case operation == operationDDL,
+			// No secondary connection assigned will just use primary when write
+			operation == operationWrite && len(query.db.replica.secondary) == 0:
+
+			clone = query.db.clone()
+
+		default:
+			resolved := query.db.replica.resolveDatabase(query.replicaResolver, operation)
+			if resolved == nil {
+				resolved = query.db
+			}
+			clone = resolved.clone()
+
+		}
+
+	} else {
+		clone = query.db.clone()
+	}
+
 	return &builder{
 		db:    clone,
 		query: query.clone().scope,
@@ -697,7 +731,7 @@ func (b *builder) replaceInto(ctx context.Context, table string) error {
 		buf.WriteString(cmd.string())
 		args = append(args, cmd.arguments...)
 	}
-	ss, err := b.buildOrderBy(b.query)
+	ss, _ := b.buildOrderBy(b.query)
 	buf.WriteString(ss.string())
 	args = append(args, ss.arguments...)
 	buf.WriteString(b.buildLimitOffset(b.query).string())

@@ -29,7 +29,7 @@ func TestProperty(t *testing.T) {
 		return
 	}
 
-	fields, err := parser.Parse([]byte(`{
+	fields, _ := parser.Parse([]byte(`{
 		"email":"sianloong90@gmail.com",
 		"status":{"$in":["OK","FAILED"]}
 	}`))
