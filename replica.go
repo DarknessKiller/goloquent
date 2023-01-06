@@ -60,6 +60,7 @@ func (r *replica) resolveDatabase(resolver replicaResolver, op dbOperation) *DB 
 
 	case DefaultReplicaResolver:
 		if op == operationRead {
+			resolverList = append(resolverList, r.secondary...)
 			resolverList = append(resolverList, r.readonly...)
 			if len(resolverList) == 0 {
 				resolverList = append(resolverList, nil)
