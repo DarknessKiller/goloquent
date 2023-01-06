@@ -18,16 +18,6 @@ type CharSet struct {
 	Collation string
 }
 
-var (
-	ReadOnly = Replica{read: true, write: false}
-	RWrite   = Replica{read: true, write: true}
-)
-
-type Replica struct {
-	read  bool
-	write bool
-}
-
 // Schema :
 type Schema struct {
 	Name         string
