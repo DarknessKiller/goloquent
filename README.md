@@ -600,10 +600,12 @@ You always need to have a primary connection then only adding replica connection
         Port: "3306",
         Database: "test",
 	ReadOnly: true,
-	Native: func(db *sql.DB) {
-            db.SetMaxIdleConns(64)
-            db.SetMaxOpenConns(64)
-            db.SetConnMaxLifetime(time.Minute)
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
         },
      }); err != nil {
             panic(fmt.Sprintf("Connection errors for mysql replica : %s", err))
@@ -642,10 +644,12 @@ You always need to have a primary connection then only adding replica connection
         Host: "localhost",
         Port: "3306",
         Database: "test",
-	Native: func(db *sql.DB) {
-            db.SetMaxIdleConns(64)
-            db.SetMaxOpenConns(64)
-            db.SetConnMaxLifetime(time.Minute)
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
         },
      }); err != nil {
             panic(fmt.Sprintf("Connection errors for mysql replica : %s", err))
