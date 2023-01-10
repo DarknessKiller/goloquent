@@ -391,6 +391,23 @@ func (db *DB) RunInTransaction(cb TransactionHandler) error {
 
 // Close :
 func (db *DB) Close() error {
+
+	if db.replica != nil {
+		for _, db := range db.replica.secondary {
+			x, isOk := db.client.sqlCommon.(*sql.DB)
+			if isOk {
+				x.Close()
+			}
+		}
+
+		for _, db := range db.replica.readonly {
+			x, isOk := db.client.sqlCommon.(*sql.DB)
+			if isOk {
+				x.Close()
+			}
+		}
+	}
+
 	x, isOk := db.client.sqlCommon.(*sql.DB)
 	if !isOk {
 		return nil
