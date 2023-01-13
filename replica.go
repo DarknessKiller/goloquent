@@ -113,7 +113,7 @@ type ReplicaConfig struct {
 func (db *DB) ReplicaPingInterval(seconds int64) error {
 	// only allow add replicas on primary connection
 	if db.replica == nil {
-		return fmt.Errorf("goloquent: unsupported replica action on replica db")
+		return fmt.Errorf("goloquent: unsupported replica action on non-primary db")
 	}
 
 	db.replicaPingInterval = seconds
@@ -123,7 +123,7 @@ func (db *DB) ReplicaPingInterval(seconds int64) error {
 func (db *DB) Replica(ctx context.Context, driver string, conf ReplicaConfig) error {
 	// only allow add replicas on primary connection
 	if db.replica == nil {
-		return fmt.Errorf("goloquent: unsupported replica action on replica db")
+		return fmt.Errorf("goloquent: unsupported replica action on non-primary db")
 	}
 
 	driver = strings.TrimSpace(strings.ToLower(driver))
