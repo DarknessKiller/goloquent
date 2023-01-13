@@ -215,13 +215,17 @@ func NewDB(ctx context.Context, driver string, charset CharSet, conn sqlCommon, 
 		logger:    logHandler,
 	}
 	dialect.SetDB(client)
+
+	replica := new(replica)
+	replica.readonly = make(map[string]*DB)
+	replica.secondary = make(map[string]*DB)
 	return &DB{
 		id:                  fmt.Sprintf("%s:%d", driver, time.Now().UnixNano()),
 		driver:              driver,
 		name:                dialect.CurrentDB(ctx),
 		client:              client,
 		dialect:             dialect,
-		replica:             new(replica),
+		replica:             replica,
 		replicaPingInterval: 30,
 	}
 }
