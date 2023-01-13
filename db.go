@@ -195,13 +195,14 @@ func (c Client) QueryRow(ctx context.Context, query string, args ...interface{})
 
 // DB :
 type DB struct {
-	id      string
-	driver  string
-	name    string
-	client  Client
-	dialect Dialect
-	omits   []string
-	replica *replica
+	id                  string
+	driver              string
+	name                string
+	client              Client
+	dialect             Dialect
+	omits               []string
+	replica             *replica
+	replicaPingInterval int64
 }
 
 // NewDB :
@@ -215,12 +216,13 @@ func NewDB(ctx context.Context, driver string, charset CharSet, conn sqlCommon, 
 	}
 	dialect.SetDB(client)
 	return &DB{
-		id:      fmt.Sprintf("%s:%d", driver, time.Now().UnixNano()),
-		driver:  driver,
-		name:    dialect.CurrentDB(ctx),
-		client:  client,
-		dialect: dialect,
-		replica: new(replica),
+		id:                  fmt.Sprintf("%s:%d", driver, time.Now().UnixNano()),
+		driver:              driver,
+		name:                dialect.CurrentDB(ctx),
+		client:              client,
+		dialect:             dialect,
+		replica:             new(replica),
+		replicaPingInterval: 30,
 	}
 }
 

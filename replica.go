@@ -9,8 +9,8 @@ import (
 )
 
 type replica struct {
-	secondary  []*DB
-	readonly   []*DB
+	secondary  map[string]*DB
+	readonly   map[string]*DB
 	roundRobin int64
 }
 
@@ -28,6 +28,14 @@ var (
 	readNext  uint32
 )
 
+func transformList(listDB map[string]*DB) []*DB {
+	outDB := make([]*DB, 0)
+	for _, db := range listDB {
+		outDB = append(outDB, db)
+	}
+	return outDB
+}
+
 func (r *replica) resolveDatabase(resolver replicaResolver, op dbOperation) *DB {
 
 	resolverList := make([]*DB, 0)
@@ -43,10 +51,10 @@ func (r *replica) resolveDatabase(resolver replicaResolver, op dbOperation) *DB 
 		}
 
 		if len(r.secondary) == 1 {
-			return r.secondary[0]
+			return transformList(r.secondary)[0]
 		}
 
-		resolverList = append(resolverList, r.secondary...)
+		resolverList = append(resolverList, transformList(r.secondary)...)
 
 	case ReplicaResolveReadOnly:
 		if len(r.readonly) == 0 {
@@ -54,14 +62,14 @@ func (r *replica) resolveDatabase(resolver replicaResolver, op dbOperation) *DB 
 		}
 
 		if len(r.readonly) == 1 {
-			return r.readonly[0]
+			return transformList(r.readonly)[0]
 		}
-		resolverList = append(resolverList, r.readonly...)
+		resolverList = append(resolverList, transformList(r.readonly)...)
 
 	case DefaultReplicaResolver:
 		if op == operationRead {
-			resolverList = append(resolverList, r.secondary...)
-			resolverList = append(resolverList, r.readonly...)
+			resolverList = append(resolverList, transformList(r.secondary)...)
+			resolverList = append(resolverList, transformList(r.readonly)...)
 			if len(resolverList) == 0 {
 				resolverList = append(resolverList, nil)
 			}
@@ -69,9 +77,13 @@ func (r *replica) resolveDatabase(resolver replicaResolver, op dbOperation) *DB 
 
 		if op == operationWrite {
 			resolverList = append(resolverList, nil)
-			resolverList = append(resolverList, r.secondary...)
+			resolverList = append(resolverList, transformList(r.secondary)...)
 		}
 
+	}
+
+	if len(resolverList) == 1 {
+		return resolverList[0]
 	}
 
 	next := uint32(0)
@@ -98,10 +110,20 @@ type ReplicaConfig struct {
 	Native     NativeHandler
 }
 
+func (db *DB) ReplicaPingInterval(seconds int64) error {
+	// only allow add replicas on primary connection
+	if db.replica == nil {
+		return fmt.Errorf("goloquent: unsupported replica action on replica db")
+	}
+
+	db.replicaPingInterval = seconds
+	return nil
+}
+
 func (db *DB) Replica(ctx context.Context, driver string, conf ReplicaConfig) error {
 	// only allow add replicas on primary connection
 	if db.replica == nil {
-		return fmt.Errorf("goloquent: unsupported replica on replica db")
+		return fmt.Errorf("goloquent: unsupported replica action on replica db")
 	}
 
 	driver = strings.TrimSpace(strings.ToLower(driver))
@@ -132,10 +154,6 @@ func (db *DB) Replica(ctx context.Context, driver string, conf ReplicaConfig) er
 		conf.Native(conn)
 	}
 
-	if err := conn.Ping(); err != nil {
-		return fmt.Errorf("goloquent: %s server has not response", driver)
-	}
-
 	client := Client{
 		driver:    driver,
 		sqlCommon: conn,
@@ -153,10 +171,35 @@ func (db *DB) Replica(ctx context.Context, driver string, conf ReplicaConfig) er
 		dialect: dialect,
 	}
 
-	if conf.ReadOnly {
-		db.replica.readonly = append(db.replica.readonly, replicaDB)
-	} else {
-		db.replica.secondary = append(db.replica.secondary, replicaDB)
-	}
+	go func() {
+		for {
+			pingContext, cancel := context.WithTimeout(context.TODO(), time.Second*time.Duration(db.replicaPingInterval))
+			defer cancel()
+
+			select {
+
+			case <-pingContext.Done():
+				err := conn.PingContext(ctx)
+				if conf.ReadOnly {
+					if err != nil {
+						delete(db.replica.readonly, replicaDB.id)
+					} else {
+						db.replica.readonly[replicaDB.id] = replicaDB
+					}
+				} else {
+					if err != nil {
+						delete(db.replica.secondary, replicaDB.id)
+					} else {
+						db.replica.secondary[replicaDB.id] = replicaDB
+					}
+				}
+
+			case <-ctx.Done():
+				break
+
+			}
+		}
+	}()
+
 	return nil
 }
