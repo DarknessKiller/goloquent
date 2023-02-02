@@ -543,7 +543,7 @@ func (x *User) Save() (error) {
     }
 ```
 
-### Context Resolution Query 
+## Context Resolution Query 
 
 ```go
     import "github.com/RevenueMonster/goloquent/db"
@@ -561,6 +561,127 @@ func (x *User) Save() (error) {
         First(ctx, user)
     // query: SELECT * FROM `user` WHERE `MerchantID` = 1234 AND `Name` LIKE "%name%"
 ```
+
+## Replica Connection
+
+You always need to have a primary connection then only adding replica connection. Primary connection must be read-write allowed, and replica can be secondary ( read-write ), and readonly connection ( read ). Currently will be round-robin strategy by default and specific resolver in Query.
+
+![Database Replica Resolver drawio (1)](https://user-images.githubusercontent.com/15674107/211081395-1e405879-deb7-4f0d-a465-c81238bc2412.png)
+
+### Adding Readonly Replica Connection
+
+```go
+    import "github.com/RevenueMonster/goloquent/db"
+
+    dbContext := context.Background()
+    conn, err := db.Open(dbContext, "mysql", db.Config{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
+        },
+    })
+    defer conn.Close()
+    if err != nil {
+        panic("Connection error: ", err)
+    }
+
+    if err := conn.Replica(dbContext, "mysql", goloquent.ReplicaConfig{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+	ReadOnly: true,
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
+        },
+     }); err != nil {
+            panic(fmt.Sprintf("Connection errors for mysql replica : %s", err))
+     }
+```
+
+### Adding Secondary Replica Connection
+
+
+```go
+    import "github.com/RevenueMonster/goloquent/db"
+
+    dbContext := context.Background()
+    conn, err := db.Open(dbContext, "mysql", db.Config{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
+        },
+    })
+    defer conn.Close()
+    if err != nil {
+        panic("Connection error: ", err)
+    }
+
+    if err := conn.Replica(dbContext, "mysql", goloquent.ReplicaConfig{
+        Username: "root",
+        Password: "",
+        Host: "localhost",
+        Port: "3306",
+        Database: "test",
+        Logger: func(stmt *goloquent.Stmt) {
+            log.Println(stmt.TimeElapse()) // elapse time in time.Duration
+            log.Println(stmt.String()) // Sql string without any ?
+            log.Println(stmt.Raw()) // Sql prepare statement
+            log.Println(stmt.Arguments()) // Sql prepare statement's arguments
+            log.Println(fmt.Sprintf("[%.3fms] %s", stmt.TimeElapse().Seconds()*1000, stmt.String()))
+        },
+     }); err != nil {
+            panic(fmt.Sprintf("Connection errors for mysql replica : %s", err))
+     }
+```
+
+### Specify replica 
+
+```go
+    import "github.com/RevenueMonster/goloquent/db"
+    import "github.com/RevenueMonster/goloquent"
+    
+    user := new(User)
+    if err := db.Where("Email", "=", "admin@hotmail.com").
+    	ReplicaResolver(goloquent.ReplicaResolvePrimaryOnly). // resolve primary only
+        First(user); err != nil {
+        log.Println(err) // error while retrieving record
+    }
+    
+    if err := db.Where("Email", "=", "admin@hotmail.com").
+    	ReplicaResolver(goloquent.ReplicaResolveSecondaryOnly). // resolve secondary only replicas
+        First(user); err != nil {
+        log.Println(err) // error while retrieving record
+    }
+    
+    if err := db.Where("Email", "=", "admin@hotmail.com").
+    	ReplicaResolver(goloquent.ReplicaResolveReadOnly). // resolve read only replicas
+        First(user); err != nil {
+        log.Println(err) // error while retrieving record
+    }
+```
+
 
 - **Data Type Support for Where Filtering**
 

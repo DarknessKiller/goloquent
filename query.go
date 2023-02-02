@@ -81,19 +81,20 @@ type group struct {
 }
 
 type scope struct {
-	table        string
-	distinctOn   []string
-	projection   []string
-	omits        []string
-	ancestors    []group
-	filters      []Filter
-	orders       []interface{}
-	limit        int32
-	offset       int32
-	errs         []error
-	noScope      bool
-	noResolution bool
-	lockMode     locked
+	table           string
+	distinctOn      []string
+	projection      []string
+	omits           []string
+	ancestors       []group
+	filters         []Filter
+	orders          []interface{}
+	limit           int32
+	offset          int32
+	errs            []error
+	noScope         bool
+	noResolution    bool
+	lockMode        locked
+	replicaResolver replicaResolver
 }
 
 func (s scope) append(s2 scope) scope {
@@ -201,6 +202,12 @@ func (q *Query) Unscoped() *Query {
 	return q
 }
 
+// Unscoped :
+func (q *Query) ReplicaResolver(resolver replicaResolver) *Query {
+	q.replicaResolver = resolver
+	return q
+}
+
 // IgnoreResolution :
 func (q *Query) IgnoreResolution() *Query {
 	q.noResolution = true
@@ -219,7 +226,7 @@ func (q *Query) Find(ctx context.Context, key *datastore.Key, model interface{})
 		return fmt.Errorf("goloquent: find action with invalid key value, %q", key)
 	}
 	q = q.Where(keyFieldName, "=", key).Limit(1)
-	return newBuilder(q).get(ctx, model, true)
+	return newBuilder(q, operationRead).get(ctx, model, true)
 }
 
 // First :
@@ -232,7 +239,7 @@ func (q *Query) First(ctx context.Context, model interface{}) error {
 		return err
 	}
 	q.Limit(1)
-	return newBuilder(q).get(ctx, model, false)
+	return newBuilder(q, operationRead).get(ctx, model, false)
 }
 
 // Get :
@@ -241,7 +248,7 @@ func (q *Query) Get(ctx context.Context, model interface{}) error {
 	if err := q.getError(); err != nil {
 		return err
 	}
-	return newBuilder(q).getMulti(ctx, model)
+	return newBuilder(q, operationRead).getMulti(ctx, model)
 }
 
 // Paginate :
@@ -272,7 +279,7 @@ func (q *Query) Paginate(ctx context.Context, p *Pagination, model interface{}) 
 	} else {
 		q = q.OrderBy(pkColumn)
 	}
-	return newBuilder(q).paginate(ctx, p, model)
+	return newBuilder(q, operationRead).paginate(ctx, p, model)
 }
 
 // Ancestor :
@@ -600,12 +607,12 @@ func (q *Query) Offset(offset int) *Query {
 
 // ReplaceInto :
 func (q *Query) ReplaceInto(ctx context.Context, table string) error {
-	return newBuilder(q).replaceInto(ctx, table)
+	return newBuilder(q, operationWrite).replaceInto(ctx, table)
 }
 
 // InsertInto :
 func (q *Query) InsertInto(ctx context.Context, table string) error {
-	return newBuilder(q).insertInto(ctx, table)
+	return newBuilder(q, operationWrite).insertInto(ctx, table)
 }
 
 // Update :
@@ -614,7 +621,7 @@ func (q *Query) Update(ctx context.Context, v interface{}) error {
 		return err
 	}
 	// q = q.OrderBy(pkColumn)
-	return newBuilder(q).updateMulti(ctx, v)
+	return newBuilder(q, operationWrite).updateMulti(ctx, v)
 }
 
 // Flush :
@@ -625,12 +632,12 @@ func (q *Query) Flush(ctx context.Context) error {
 	if q.table == "" {
 		return fmt.Errorf("goloquent: unable to perform delete without table name")
 	}
-	return newBuilder(q).deleteByQuery(ctx)
+	return newBuilder(q, operationWrite).deleteByQuery(ctx)
 }
 
 // Scan :
 func (q *Query) Scan(ctx context.Context, dest ...interface{}) error {
-	return newBuilder(q).scan(ctx, dest...)
+	return newBuilder(q, operationRead).scan(ctx, dest...)
 }
 
 func (q *Query) InjectResolution(ctx context.Context) context.Context {

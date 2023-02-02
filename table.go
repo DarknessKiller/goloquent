@@ -20,17 +20,17 @@ func (t *Table) newQuery() *Query {
 
 // Create :
 func (t *Table) Create(ctx context.Context, model interface{}, parentKey ...*datastore.Key) error {
-	return newBuilder(t.newQuery()).put(ctx, model, parentKey)
+	return newBuilder(t.newQuery(), operationWrite).put(ctx, model, parentKey)
 }
 
 // Upsert :
 func (t *Table) Upsert(ctx context.Context, model interface{}, parentKey ...*datastore.Key) error {
-	return newBuilder(t.newQuery()).upsert(ctx, model, parentKey)
+	return newBuilder(t.newQuery(), operationWrite).upsert(ctx, model, parentKey)
 }
 
 // Migrate :
 func (t *Table) Migrate(ctx context.Context, model interface{}) error {
-	return newBuilder(t.newQuery()).migrate(ctx, model)
+	return newBuilder(t.newQuery(), operationWrite).migrate(ctx, model)
 }
 
 // Exists :
@@ -40,12 +40,12 @@ func (t *Table) Exists(ctx context.Context) bool {
 
 // DropIfExists :
 func (t *Table) DropIfExists(ctx context.Context) error {
-	return newBuilder(t.newQuery()).dropTableIfExists(ctx, t.name)
+	return newBuilder(t.newQuery(), operationDDL).dropTableIfExists(ctx, t.name)
 }
 
 // Truncate :
 func (t *Table) Truncate(ctx context.Context) error {
-	return newBuilder(t.newQuery()).truncate(ctx, t.name)
+	return newBuilder(t.newQuery(), operationWrite).truncate(ctx, t.name)
 }
 
 // // Rename :
@@ -55,12 +55,12 @@ func (t *Table) Truncate(ctx context.Context) error {
 
 // AddIndex :
 func (t *Table) AddIndex(ctx context.Context, fields ...string) error {
-	return newBuilder(t.newQuery()).addIndex(ctx, fields, bTreeIdx)
+	return newBuilder(t.newQuery(), operationDDL).addIndex(ctx, fields, bTreeIdx)
 }
 
 // AddUniqueIndex :
 func (t *Table) AddUniqueIndex(ctx context.Context, fields ...string) error {
-	return newBuilder(t.newQuery()).addIndex(ctx, fields, uniqueIdx)
+	return newBuilder(t.newQuery(), operationDDL).addIndex(ctx, fields, uniqueIdx)
 }
 
 // Select :
@@ -210,7 +210,7 @@ func (t *Table) Update(ctx context.Context, v interface{}) error {
 
 // Save :
 func (t *Table) Save(ctx context.Context, model interface{}) error {
-	return newBuilder(t.newQuery()).save(ctx, model)
+	return newBuilder(t.newQuery(), operationWrite).save(ctx, model)
 }
 
 // Scan :
