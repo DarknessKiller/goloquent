@@ -1225,7 +1225,10 @@ func (b *builder) runInTransaction(cb TransactionHandler) error {
 	if err != nil {
 		return fmt.Errorf("goloquent: unable to begin transaction, %v", err)
 	}
+
+	// transactional mode should use primary only
 	db := b.db.clone()
+	db.replica = nil
 	db.client.sqlCommon = tx
 	defer func() {
 		if r := recover(); r != nil {

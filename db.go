@@ -392,7 +392,7 @@ func (db *DB) MatchAgainst(fields []string, value ...string) *Query {
 
 // RunInTransaction :
 func (db *DB) RunInTransaction(cb TransactionHandler) error {
-	return newBuilder(db.NewQuery(), operationWrite).runInTransaction(cb)
+	return newBuilder(db.NewQuery(), operationDDL).runInTransaction(cb)
 }
 
 // Close :
