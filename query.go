@@ -253,6 +253,7 @@ func (q *Query) Get(ctx context.Context, model interface{}) error {
 
 // Paginate :
 func (q *Query) Paginate(ctx context.Context, p *Pagination, model interface{}) error {
+	pkSortExist := false
 	if err := q.getError(); err != nil {
 		return err
 	}
@@ -267,11 +268,16 @@ func (q *Query) Paginate(ctx context.Context, p *Pagination, model interface{}) 
 	}
 	q = q.Limit(int(p.Limit) + 1)
 	if len(q.orders) > 0 {
-		lastField := q.orders[len(q.orders)-1]
-		x, isOk := lastField.(expr.Sort)
-		if isOk && x.Name != pkColumn {
+		for _, o := range q.orders {
+			if x, isOk := o.(expr.Sort); isOk && x.Name == pkColumn {
+				pkSortExist = true
+				break
+			}
+		}
+		if !pkSortExist {
+			lastField := q.orders[len(q.orders)-1].(expr.Sort)
 			k := pkColumn
-			if x.Direction == expr.Descending {
+			if lastField.Direction == expr.Descending {
 				k = "-" + k
 			}
 			q = q.OrderBy(k)
